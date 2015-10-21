@@ -46,7 +46,6 @@ class Fluent::InfluxdbOutput < Fluent::BufferedOutput
   end
 
   def write(chunk)
-    points = []
     chunk.msgpack_each do |tag, time, record|
       unless record.empty?
         point = {}
@@ -58,10 +57,13 @@ class Fluent::InfluxdbOutput < Fluent::BufferedOutput
           point[:tags] = record.select{|k,v| @tag_keys.include?(k)}
           point[:values] = record.select{|k,v| !@tag_keys.include?(k)}
         end
-        points << point
+        begin
+          @influxdb.write_points(point)
+        rescue
+          $log.warn "unexpected error", :error=>$!.to_s
+          $log.warn_backtrace
+        end
       end
     end
-
-    @influxdb.write_points(points)
   end
 end
